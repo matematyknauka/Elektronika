@@ -1,49 +1,66 @@
 #include <Wire.h>
 
-// Adres I2C wyświetlacza (zazwyczaj 0x27 lub 0x3F)
-const uint8_t lcdAddr = 0x27; 
+const uint8_t lcdAddr = 0x27;
 
-// Funkcja wysyłająca dane do LCD
-void lcd_write(uint8_t value, uint8_t mode) {
-  // mode: 0 = komenda, 1 = dane
+// Podstawowa funkcja wysyłająca bajt do LCD (nie zmieniaj jej)
+void lcd_send(uint8_t value, uint8_t mode) {
   uint8_t highNibble = value & 0xF0;
   uint8_t lowNibble = (value << 4) & 0xF0;
   
-  // Przesyłamy w dwóch krokach (tryb 4-bitowy)
   uint8_t data[4];
-  data[0] = highNibble | 0x08 | mode; // 0x08 to podświetlenie (LED)
-  data[1] = highNibble | 0x0C | mode; // E=1
+  data[0] = highNibble | 0x08 | mode; 
+  data[1] = highNibble | 0x0C | mode; 
   data[2] = lowNibble | 0x08 | mode;
-  data[3] = lowNibble | 0x0C | mode;  // E=1
+  data[3] = lowNibble | 0x0C | mode;  
   
   Wire.beginTransmission(lcdAddr);
   for(int i=0; i<4; i++) {
     Wire.write(data[i]);
-    if(i % 2 != 0) Wire.endTransmission(true); // Wyślij każdą półbajtową paczkę
-    if(i % 2 != 0) Wire.beginTransmission(lcdAddr);
+    if(i % 2 != 0) {
+      Wire.endTransmission();
+      delayMicroseconds(50);
+    }
+    if(i % 2 != 0 && i < 3) Wire.beginTransmission(lcdAddr);
   }
-  delayMicroseconds(50);
+}
+
+// USTAWIENIE KURSORA (wiersz 0 lub 1, kolumna 0-15)
+void setCursor(uint8_t col, uint8_t row) {
+  uint8_t adresy[] = {0x80, 0xC0}; // Adresy startowe dla wierszy 0 i 1
+  lcd_send(adresy[row] + col, 0);
+}
+
+// FUNKCJA WYPISUJĄCA TEKST (String lub char*)
+void printLCD(String tresc) {
+  for(int i = 0; i < tresc.length(); i++) {
+    lcd_send(tresc[i], 1);
+  }
+}
+
+// CZYSZCZENIE EKRANU
+void clearLCD() {
+  lcd_send(0x01, 0);
+  delay(2);
 }
 
 void setup() {
   Wire.begin();
-  delay(50);
+  
+  // Inicjalizacja wyświetlacza
+  lcd_send(0x02, 0); 
+  lcd_send(0x28, 0); 
+  lcd_send(0x0C, 0); 
+  lcd_send(0x06, 0); 
+  clearLCD();
 
-  // Inicjalizacja wyświetlacza w trybie 4-bitowym
-  lcd_write(0x02, 0); // Powrót do 4 bitów
-  lcd_write(0x28, 0); // 4 bity, 2 linie, 5x8
-  lcd_write(0x0C, 0); // Włącz ekran, wyłącz kursor
-  lcd_write(0x06, 0); // Przesuwaj kursor w prawo
-  lcd_write(0x01, 0); // Czyść ekran
-  delay(2);
-
-  // Wypisanie tekstu
-  char tekst[] = "Hello World!";
-  for(int i=0; tekst[i] != '\0'; i++) {
-    lcd_write(tekst[i], 1);
-  }
+  // --- PRZYKŁAD UŻYCIA ---
+  setCursor(3, 0);        // Kolumna 3, Wiersz 0 (pierwszy)
+  printLCD("Witaj ESP32");
+  
+  setCursor(0, 1);        // Kolumna 0, Wiersz 1 (drugi)
+  printLCD("Czas: 12:00");
 }
 
 void loop() {
-  // Pusty
+  // Tutaj możesz np. aktualizować zegar
 }

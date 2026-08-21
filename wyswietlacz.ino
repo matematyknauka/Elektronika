@@ -58,7 +58,7 @@ void setup() {
   printLCD("Witaj ESP32");
   
   setCursor(0, 1);        // Kolumna 0, Wiersz 1 (drugi)
-  printLCD("Czas: 12:00");
+  printLCD(String("Czas: ") + 21 + ":" + 42);
 }
 
 void loop() {

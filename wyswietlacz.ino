@@ -2,65 +2,68 @@
 
 const uint8_t lcdAddr = 0x27;
 
-// Podstawowa funkcja wysyłająca bajt do LCD (nie zmieniaj jej)
+// Podstawowa funkcja wysyłająca bajt do LCD
 void lcd_send(uint8_t value, uint8_t mode) {
-  uint8_t highNibble = value & 0xF0;
-  uint8_t lowNibble = (value << 4) & 0xF0;
-  
-  uint8_t data[4];
-  data[0] = highNibble | 0x08 | mode; 
-  data[1] = highNibble | 0x0C | mode; 
-  data[2] = lowNibble | 0x08 | mode;
-  data[3] = lowNibble | 0x0C | mode;  
-  
-  Wire.beginTransmission(lcdAddr);
-  for(int i=0; i<4; i++) {
-    Wire.write(data[i]);
-    if(i % 2 != 0) {
-      Wire.endTransmission();
-      delayMicroseconds(50);
+    uint8_t highnibble = value & 0xF0;
+    uint8_t lownibble  = (value << 4) & 0xF0;
+
+    uint8_t data[4];
+    data[0] = highnibble | 0x0C | mode; // EN = 1, Backlight = 1
+    data[1] = highnibble | 0x08 | mode; // EN = 0, Backlight = 1
+    data[2] = lownibble  | 0x0C | mode; // EN = 1, Backlight = 1
+    data[3] = lownibble  | 0x08 | mode; // EN = 0, Backlight = 1
+
+    for (int i = 0; i < 4; i++) {
+        Wire.beginTransmission(lcdAddr);
+        Wire.write(data[i]);
+        Wire.endTransmission();
+        delayMicroseconds(50); // Opóźnienie stabilizujące dla fizycznego HD44780
     }
-    if(i % 2 != 0 && i < 3) Wire.beginTransmission(lcdAddr);
-  }
 }
 
-// USTAWIENIE KURSORA (wiersz 0 lub 1, kolumna 0-15)
+// Ustawianie kursora (wiersz 0 lub 1, kolumna 0-15)
 void setCursor(uint8_t col, uint8_t row) {
-  uint8_t adresy[] = {0x80, 0xC0}; // Adresy startowe dla wierszy 0 i 1
-  lcd_send(adresy[row] + col, 0);
+    uint8_t adresy[] = {0x80, 0xC0};
+    lcd_send(adresy[row] + col, 0);
 }
 
-// FUNKCJA WYPISUJĄCA TEKST (String lub char*)
+// Funkcja wypisująca tekst
 void printLCD(String tresc) {
-  for(int i = 0; i < tresc.length(); i++) {
-    lcd_send(tresc[i], 1);
-  }
+    for (int i = 0; i < tresc.length(); i++) {
+        lcd_send(tresc[i], 1);
+    }
 }
 
-// CZYSZCZENIE EKRANU
+// Czyszczenie ekranu
 void clearLCD() {
-  lcd_send(0x01, 0);
-  delay(2);
+    lcd_send(0x01, 0);
+    delay(2);
 }
 
 void setup() {
-  Wire.begin();
-  
-  // Inicjalizacja wyświetlacza
-  lcd_send(0x02, 0); 
-  lcd_send(0x28, 0); 
-  lcd_send(0x0C, 0); 
-  lcd_send(0x06, 0); 
-  clearLCD();
+    Wire.begin();
+    delay(50);
 
-  // --- PRZYKŁAD UŻYCIA ---
-  setCursor(3, 0);        // Kolumna 3, Wiersz 0 (pierwszy)
-  printLCD("Witaj ESP32");
-  
-  setCursor(0, 1);        // Kolumna 0, Wiersz 1 (drugi)
-  printLCD(String("Czas: ") + 21 + ":" + 42);
+    // Sekwencja inicjalizacji HD44780 w trybie 4-bitowym
+    lcd_send(0x33, 0);
+    delay(5);
+    lcd_send(0x32, 0);
+    delay(5);
+    
+    // Konfiguracja pracy
+    lcd_send(0x28, 0); // 4-bit, 2 linie, font 5x8
+    lcd_send(0x0C, 0); // Ekran włączony, kursor wyłączony
+    lcd_send(0x06, 0); // Inkrementacja kursora
+    clearLCD();
+
+    // Wyświetlanie tekstów
+    setCursor(3, 0);
+    printLCD("Witaj ESP32!");
+
+    setCursor(0, 1);
+    printLCD("Czas");
 }
 
 void loop() {
-  // Tutaj możesz np. aktualizować zegar
+    // Tutaj możesz dodać kod odświeżany w pętli
 }
